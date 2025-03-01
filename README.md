@@ -3,7 +3,8 @@ Guide:
 ![Screenshot 2025-03-01 193118](https://github.com/user-attachments/assets/10752c68-b7e6-4600-bfab-e1ff147d1c44)
 ![Screenshot 2025-03-01 193133](https://github.com/user-attachments/assets/f1047646-3ddb-4dbb-a038-985c3fd512dc)
 ![Screenshot 2025-03-01 193125](https://github.com/user-attachments/assets/84704842-6f1d-48d7-9215-ba3ad073e0dc)
-![Screenshot 2025-03-01 192947](https://github.com/user-attachments/assets/823e308c-0028-4d91-b35c-64d09c0895b2)
+![image](https://github.com/user-attachments/assets/934c393a-9804-4155-ad23-eb32f2879728)
+
 
 
 On the home page, users can view their balance, expenses, and budget.
