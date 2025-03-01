@@ -40,22 +40,6 @@ class AddExpenseViewModel @Inject constructor(val dao: ExpenseDao) : BaseViewMod
         }
     }
 
-    fun getExpenseById(id: Int): ExpenseEntity? {
-        return runBlocking {
-            withContext(Dispatchers.IO) {
-                dao.getExpenseById(id)
-            }
-        }
-    }
-
-    fun loadExpenseById(id: Int) {
-        viewModelScope.launch {
-            dao.getExpenseById(id)?.let { expenseEntity ->
-                _expense.value = expenseEntity
-            }
-        }
-    }
-
     suspend fun deleteExpense(expenseEntity: ExpenseEntity): Boolean {
         return try {
             dao.deleteExpense(expenseEntity)

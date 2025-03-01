@@ -4,13 +4,18 @@ import android.widget.TextView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,6 +29,8 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -58,18 +66,21 @@ import com.koco.personalfinancetracker.R
 import com.koco.personalfinancetracker.presentation.navigation.base.AddExpenseNavigationEvent
 import com.koco.personalfinancetracker.presentation.navigation.base.NavigationEvent
 import com.koco.personalfinancetracker.data.model.ExpenseEntity
+import com.koco.personalfinancetracker.presentation.home.HomeViewModel
 import com.koco.personalfinancetracker.presentation.ui.theme.Typography
+import com.koco.personalfinancetracker.utils.NotificationHelper
 import com.koco.personalfinancetracker.utils.Utils
 
 @Composable
 fun AddExpense(
     navController: NavController,
     isIncome: Boolean,
-    transactionId: Int? = null,  // Nullable ID for editing
-    viewModel: AddExpenseViewModel = hiltViewModel()
+    transactionId: Int? = null,
+    viewModel: AddExpenseViewModel = hiltViewModel(),
+    homeViewModel: HomeViewModel = hiltViewModel()
 ) {
-    val expense by viewModel.expense.collectAsState() // Collect the state
-
+    val expense by viewModel.expense.collectAsState()
+    val categoryBudgets by homeViewModel.categoryBudgets.collectAsState()
     val name = remember { mutableStateOf("") }
     val amount = remember { mutableStateOf("") }
     val date = remember { mutableLongStateOf(0L) }
@@ -97,48 +108,54 @@ fun AddExpense(
         }
     }
 
-
     Surface(modifier = Modifier.fillMaxSize()) {
-        ConstraintLayout(modifier = Modifier.fillMaxSize()) {
-            val (nameRow, card, topBar) = createRefs()
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 64.dp, start = 16.dp, end = 16.dp)
-                .constrainAs(nameRow) {
-                    top.linkTo(parent.top)
+        Column {
+            ConstraintLayout(modifier = Modifier) {
+                val (nameRow, card, topBar) = createRefs()
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+                    .constrainAs(nameRow) {
+                        top.linkTo(parent.top)
+                        start.linkTo(parent.start)
+                        end.linkTo(parent.end)
+                    }) {
+                    Image(painter = painterResource(id = R.drawable.ic_back), contentDescription = null,
+                        colorFilter = ColorFilter.tint(Color.Black),
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .clickable {
+                                viewModel.onEvent(AddExpenseUiEvent.OnBackPressed)
+                            })
+                    Text(
+                        text = "Add ${if (isIncome) "Budget" else "Expense"}",
+                        style = Typography.bodySmall,
+                        color = Color.Black,
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .align(Alignment.Center)
+                    )
+
+                }
+
+                DataForm(modifier = Modifier.constrainAs(card) {
+                    top.linkTo(nameRow.bottom)
                     start.linkTo(parent.start)
                     end.linkTo(parent.end)
-                }) {
-                Image(painter = painterResource(id = R.drawable.ic_back), contentDescription = null,
-                    colorFilter = ColorFilter.tint(Color.Black),
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .clickable {
-                            viewModel.onEvent(AddExpenseUiEvent.OnBackPressed)
-                        })
-                Text(
-                    text = "Add ${if (isIncome) "Budget" else "Expense"}",
-                    style = Typography.bodySmall,
-                    color = Color.Black,
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .align(Alignment.Center)
-                )
+                },  onAddExpenseClick = { model ->
+                    if (transactionId != null && transactionId != -1) {
+                        viewModel.onEvent(AddExpenseUiEvent.OnUpdateExpenseClicked(model.copy(id = transactionId)))
+                    } else {
+                        viewModel.onEvent(AddExpenseUiEvent.OnAddExpenseClicked(model))
+                    }
+                }, isIncome = isIncome)
+
+
 
             }
-
-            DataForm(modifier = Modifier.constrainAs(card) {
-                top.linkTo(nameRow.bottom)
-                start.linkTo(parent.start)
-                end.linkTo(parent.end)
-            },  onAddExpenseClick = { model ->
-                if (transactionId != null && transactionId != -1) {
-                    viewModel.onEvent(AddExpenseUiEvent.OnUpdateExpenseClicked(model.copy(id = transactionId)))
-                } else {
-                    viewModel.onEvent(AddExpenseUiEvent.OnAddExpenseClicked(model))
-                }
-            }, isIncome = isIncome)
+            BudgetVsSpending(viewModel = homeViewModel)
         }
+
     }
 }
 
@@ -365,6 +382,79 @@ fun ExpenseDropDown(listOfItems: List<String>, onItemSelected: (item: String) ->
                     onItemSelected(selectedItem.value)
                     expanded.value = false
                 })
+            }
+        }
+    }
+}
+
+@Composable
+fun BudgetVsSpending(viewModel: HomeViewModel) {
+    val categoryBudgets by viewModel.categoryBudgets.collectAsState()
+    val categorySpending by viewModel.categorySpending.collectAsState()
+    val context = LocalContext.current
+    val notifiedCategories = remember { mutableStateOf(mutableSetOf<String>()) }
+
+    LaunchedEffect(categorySpending) {
+        categorySpending.forEach { (category, spent) ->
+            val budget = categoryBudgets[category] ?: 0.0
+
+            when {
+                spent > budget && category !in notifiedCategories.value -> {
+                    NotificationHelper.NotificationHelper.sendNotification(
+                        context,
+                        "Over Budget!",
+                        "⚠ You have exceeded your budget for $category!"
+                    )
+                    notifiedCategories.value.add(category)
+                }
+                spent >= budget * 0.9 && category !in notifiedCategories.value -> {
+                    NotificationHelper.NotificationHelper.sendNotification(
+                        context,
+                        "Near Budget Limit",
+                        "⚠ You are nearing your budget for $category!"
+                    )
+                    notifiedCategories.value.add(category)
+                }
+            }
+        }
+    }
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(text = "Budget vs. Spending", style = Typography.bodyLarge)
+
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(categoryBudgets.keys.toList()) { category ->
+                val budget = categoryBudgets[category] ?: 0.0
+                val spent = categorySpending[category] ?: 0.0
+                val remaining = budget - spent
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(text = category+":- ", style = Typography.headlineSmall)
+                        Row {
+                            Row {
+                                Text(text = "Budget:  ")
+                                Text(text = "${Utils.formatCurrency(budget)}  ", color = Color.Green)
+                            }
+                            Row {
+                                Text(text = "-  Spent:  ")
+                                Text(text = "${Utils.formatCurrency(spent)}", color = Color.Red)
+                            }
+                        }
+                        Row{
+                            Text(text = "Remaining: ")
+                            Text(
+                                text = "${Utils.formatCurrency(remaining)}",
+                                color = if (remaining >= 0) Color.Green else Color.Red
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }

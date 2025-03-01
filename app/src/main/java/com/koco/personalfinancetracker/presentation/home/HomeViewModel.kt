@@ -19,6 +19,14 @@ class HomeViewModel @Inject constructor(val dao: ExpenseDao) : BaseViewModel() {
     val expenses = dao.getAllExpense()
     private val _categoryBudgets = MutableStateFlow<Map<String, Double>>(emptyMap())
     val categoryBudgets: StateFlow<Map<String, Double>> = _categoryBudgets
+
+    private val _categorySpending = MutableStateFlow<Map<String, Double>>(emptyMap())
+    val categorySpending: StateFlow<Map<String, Double>> = _categorySpending
+
+    init {
+        calculateCategoryBudgets()
+        calculateCategorySpending()
+    }
     override fun onEvent(event: UiEvent) {
         when (event) {
             is HomeUiEvent.OnAddExpenseClicked -> {
@@ -47,7 +55,6 @@ class HomeViewModel @Inject constructor(val dao: ExpenseDao) : BaseViewModel() {
         calculateCategoryBudgets()
     }
 
-    // Calculate category budgets based on stored transactions
     private fun calculateCategoryBudgets() {
         viewModelScope.launch {
             expenses.collectLatest { list ->
@@ -56,6 +63,18 @@ class HomeViewModel @Inject constructor(val dao: ExpenseDao) : BaseViewModel() {
                     budgetMap[budget.title] = budgetMap.getOrDefault(budget.title, 0.0) + budget.amount
                 }
                 _categoryBudgets.value = budgetMap
+            }
+        }
+    }
+
+    private fun calculateCategorySpending() {
+        viewModelScope.launch {
+            expenses.collectLatest { list ->
+                val spendingMap = mutableMapOf<String, Double>()
+                list.filter { it.type != "Budget" }.forEach { expense ->
+                    spendingMap[expense.title] = spendingMap.getOrDefault(expense.title, 0.0) + expense.amount
+                }
+                _categorySpending.value = spendingMap
             }
         }
     }
