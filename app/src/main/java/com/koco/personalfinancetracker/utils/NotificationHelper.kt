@@ -21,7 +21,7 @@ object NotificationHelper {
             notificationManager.createNotificationChannel(channel)
 
             val notification = NotificationCompat.Builder(context, "budget_channel")
-                .setSmallIcon(R.drawable.ic_notification) // Replace with your app's notification icon
+                .setSmallIcon(R.drawable.ic_notification) 
                 .setContentTitle(title)
                 .setContentText(message)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
